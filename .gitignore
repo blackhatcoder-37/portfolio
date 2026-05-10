@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Portable Node.js binaries
+node-v*.win-x64/
+node*.zip
+node-new.zip
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
