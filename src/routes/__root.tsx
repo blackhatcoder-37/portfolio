@@ -72,14 +72,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Vyshnavi R — Data Science Student & NLP Researcher" },
+      { name: "description", content: "Portfolio of Vyshnavi R, a final-year Data Science student at SRM specializing in NLP, sentiment analysis, and award-winning research." },
+      { name: "author", content: "Vyshnavi R" },
+      { property: "og:title", content: "Vyshnavi R — Data Science Portfolio" },
+      { property: "og:description", content: "NLP researcher, award-winning paper presenter, and curious learner." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
