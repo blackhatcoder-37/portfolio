@@ -12,6 +12,7 @@ dist
 dist-ssr
 .output
 .vinxi
+.lovable
 .tanstack/**
 .nitro
 *.local
@@ -35,3 +36,8 @@ node-new.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Package manager lock files (optional - keep for reproducibility)
+# Uncomment if you prefer not to commit lock files
+# package-lock.json
+# bun.lock
