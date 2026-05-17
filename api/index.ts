@@ -1,72 +1,60 @@
-// Vercel Serverless Function Handler for TanStack Start SSR App
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let cachedHandler: any = null;
 
-// Polyfill for fetch if needed
-if (!global.fetch) {
-  global.fetch = (url, options) => {
-    return new Promise((resolve, reject) => {
-      // This would need a proper polyfill implementation
-      reject(new Error("Fetch not available"));
-    });
-  };
-}
-
-let serverHandler = null;
-
-async function loadServerHandler() {
-  if (serverHandler) return serverHandler;
+async function getHandler() {
+  if (cachedHandler) {
+    return cachedHandler;
+  }
 
   try {
-    // Import the SSR handler
-    const module = await import("../dist/server/index.js");
-    serverHandler = module.default;
-    return serverHandler;
-  } catch (error) {
-    console.error("Failed to load server handler:", error);
-    throw error;
+    // Dynamically import the server worker
+    const serverModule = await import("../dist/server/index.js");
+    cachedHandler = serverModule.default;
+    return cachedHandler;
+  } catch (err) {
+    console.error("Failed to load server module:", err);
+    throw err;
   }
 }
 
-export default async (req, res) => {
+export default async (req: VercelRequest, res: VercelResponse) => {
   try {
-    const handler = await loadServerHandler();
+    const handler = await getHandler();
 
-    // Create a Request object compatible with the handler
-    const url = new URL(`http://${req.headers.host}${req.url}`);
-    const requestInit = {
-      method: req.method,
-      headers: req.headers,
-    };
+    // Build the URL
+    const protocol = req.headers["x-forwarded-proto"] || "http";
+    const host = req.headers.host || "localhost";
+    const url = `${protocol}://${host}${req.url}`;
 
-    // Only add body for non-GET/HEAD requests
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      let body = "";
-      for await (const chunk of req) {
-        body += chunk.toString();
-      }
-      if (body) {
-        requestInit.body = body;
-      }
-    }
+    // Create the request object
+    const request = new Request(url, {
+      method: req.method || "GET",
+      headers: req.headers as any,
+      ...(req.method && req.method !== "GET" && req.method !== "HEAD" && req.body
+        ? { body: JSON.stringify(req.body) }
+        : {}),
+    });
 
-    const request = new Request(url.toString(), requestInit);
-    const response = await handler(request, {}, {});
+    // Call the handler - it should have a fetch method
+    const response = await handler.fetch(request, {}, {});
 
-    // Set response status and headers
+    // Send the response
     res.status(response.status);
-    for (const [key, value] of response.headers) {
+
+    // Copy response headers
+    for (const [key, value] of response.headers.entries()) {
       res.setHeader(key, value);
     }
 
-    // Send response body
-    const body = await response.text();
-    res.send(body);
-  } catch (error) {
-    console.error("Server error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    // Send body
+    const text = await response.text();
+    res.send(text);
+  } catch (error: any) {
+    console.error("Request failed:", error);
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: error?.message,
+    });
   }
 };
