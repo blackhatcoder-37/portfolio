@@ -8,9 +8,16 @@ async function getHandler() {
   }
 
   try {
-    // Dynamically import the server worker
+    // Import the server module
     const serverModule = await import("../dist/server/index.js");
+    
+    // The module exports the handler as default
     cachedHandler = serverModule.default;
+    
+    if (!cachedHandler) {
+      throw new Error("No default export found in server module");
+    }
+    
     return cachedHandler;
   } catch (err) {
     console.error("Failed to load server module:", err);
@@ -25,27 +32,53 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     // Build the URL
     const protocol = req.headers["x-forwarded-proto"] || "http";
     const host = req.headers.host || "localhost";
-    const url = `${protocol}://${host}${req.url}`;
+    const pathname = req.url || "/";
+    const url = `${protocol}://${host}${pathname}`;
 
-    // Create the request object
+    console.log(`[${req.method}] ${url}`);
+
+    // Build headers object
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (typeof value === "string") {
+        headers.set(key, value);
+      }
+    }
+
+    // Create the request
+    let body: any = undefined;
+    if (req.method && req.method !== "GET" && req.method !== "HEAD") {
+      if (req.body) {
+        body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      }
+    }
+
     const request = new Request(url, {
       method: req.method || "GET",
-      headers: req.headers as any,
-      ...(req.method && req.method !== "GET" && req.method !== "HEAD" && req.body
-        ? { body: JSON.stringify(req.body) }
-        : {}),
+      headers,
+      ...(body ? { body } : {}),
     });
 
-    // Call the handler - it should have a fetch method
-    const response = await handler.fetch(request, {}, {});
+    // Call the handler with fetch method
+    let response: Response;
+    
+    if (typeof handler === "function" && handler.fetch) {
+      // Handler has a fetch method (like Cloudflare Worker)
+      response = await handler.fetch(request, {}, {});
+    } else if (typeof handler === "function") {
+      // Handler is a function, call it directly
+      response = await handler(request, {}, {});
+    } else {
+      throw new Error(`Handler is not a function: ${typeof handler}`);
+    }
 
     // Send the response
     res.status(response.status);
 
     // Copy response headers
-    for (const [key, value] of response.headers.entries()) {
+    response.headers.forEach((value, key) => {
       res.setHeader(key, value);
-    }
+    });
 
     // Send body
     const text = await response.text();
@@ -54,7 +87,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     console.error("Request failed:", error);
     res.status(500).json({
       error: "Internal Server Error",
-      details: error?.message,
+      message: error?.message || "Unknown error",
+      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
     });
   }
 };
