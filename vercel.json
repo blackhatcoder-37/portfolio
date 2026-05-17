@@ -1,12 +1,10 @@
 {
   "buildCommand": "npm run build",
-  "env": {
-    "NODE_ENV": "production"
-  },
+  "outputDirectory": "dist/client",
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "/api/handler"
     }
   ]
 }
