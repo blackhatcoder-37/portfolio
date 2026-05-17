@@ -1,39 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import fs from "fs";
-import path from "path";
 
 let handler: any;
 
 export default async (req: VercelRequest, res: VercelResponse) => {
   try {
-    const pathname = req.url || "/";
-
-    // Serve static assets from dist/client
-    if (pathname.startsWith("/assets/")) {
-      const filePath = path.join(process.cwd(), "dist/client", pathname);
-      
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath);
-        
-        // Set correct content type
-        if (pathname.endsWith(".js")) {
-          res.setHeader("Content-Type", "application/javascript");
-        } else if (pathname.endsWith(".css")) {
-          res.setHeader("Content-Type", "text/css");
-        } else if (pathname.endsWith(".svg")) {
-          res.setHeader("Content-Type", "image/svg+xml");
-        } else if (pathname.endsWith(".png")) {
-          res.setHeader("Content-Type", "image/png");
-        } else if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) {
-          res.setHeader("Content-Type", "image/jpeg");
-        }
-        
-        res.setHeader("Cache-Control", "public, max-age=31536000");
-        return res.send(content);
-      }
-      return res.status(404).send("Not found");
-    }
-
     // Load SSR handler once
     if (!handler) {
       const module = await import("../dist/server/index.js");
@@ -43,6 +13,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     // Normalize headers
     const protocol = req.headers["x-forwarded-proto"] as string || "https";
     const host = req.headers.host as string || "localhost";
+    const pathname = req.url || "/";
+    
     const url = new URL(`${protocol}://${host}${pathname}`);
 
     // Build Request object with proper headers
